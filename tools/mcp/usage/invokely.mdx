@@ -1,0 +1,53 @@
+---
+title: Invokely MCP statistics agent
+description: Connect an Agno agent to Invokely's official statistics MCP server over Streamable HTTP.
+---
+
+Use the [Invokely MCP server](https://invokely.ai/docs) to query official statistics. Each returned figure includes its period, unit, source, and citation.
+
+```python invokely_mcp_agent.py
+"""
+Query official statistics through the Invokely MCP server.
+
+Install: uv pip install "agno[mcp]" openai
+Set OPENAI_API_KEY before running.
+"""
+
+import asyncio
+
+from agno.agent import Agent
+from agno.models.openai import OpenAIResponses
+from agno.tools.mcp import MCPTools
+
+STATISTICS_TOOLS = [
+    "search_indicators",
+    "resolve_place",
+    "get_value",
+    "get_series",
+    "compare",
+    "rank_places",
+]
+
+
+async def run_agent(prompt: str) -> None:
+    async with MCPTools(
+        url="https://invokely.ai/mcp/trial",
+        transport="streamable-http",
+        include_tools=STATISTICS_TOOLS,
+    ) as invokely:
+        agent = Agent(
+            model=OpenAIResponses(id="gpt-5.4"),
+            tools=[invokely],
+            instructions="Cite the source for every figure and include its period and unit.",
+            markdown=True,
+        )
+        await agent.aprint_response(prompt, stream=True)
+
+
+if __name__ == "__main__":
+    asyncio.run(
+        run_agent("Find the latest official unemployment rate for Spain and cite its source.")
+    )
+```
+
+The account-free MCP trial allows 25 calls per day per IP address. The endpoint also advertises five workspace tools, which this agent does not register. `include_tools` is a client-side filter and does not change server-side authentication or plan checks. Saving or updating workspace items requires Pro. See [Invokely pricing](https://invokely.ai/pricing) for the trial and account limits. OpenAI API usage is billed separately.
